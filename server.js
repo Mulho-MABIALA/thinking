@@ -12,8 +12,19 @@ const app = express();
 connectDB();
 
 // Middlewares
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://bejewelled-piroshki-f572b9.netlify.app',
+  process.env.FRONTEND_URL,
+].filter(Boolean).map(o => o.replace(/\/$/, ''));
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const clean = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(clean)) return callback(null, true);
+    return callback(null, true); // permissif pour prod
+  },
   credentials: true
 }));
 app.use(express.json());
