@@ -1,0 +1,150 @@
+Settings Pro - Ce qui a été fait
+Widgets obligatoires utilisés
+Widget	Utilisation
+Scaffold	Structure principale de la page
+AppBar	Barre titre "Settings"
+ListView	Liste principale scrollable
+ListTile	Chaque élément de menu
+Padding	Espacement des titres de section
+Text	Titres, labels des menus
+Icon	Icônes colorées dans chaque item
+SnackBar	Message au clic sur chaque menu/logout
+Divider	Séparateur entre les items d'une section
+Container	Cartes des sections + fond des icônes
+Bonus réalisés
+Fond gris clair : Color(0xFFF2F2F7) (style iOS)
+Coins arrondis : BorderRadius.circular(14) sur chaque section
+Espacement propre : SizedBox entre les sections, padding uniforme
+Icônes colorées : indigo / vert / orange / teal / violet / rouge selon le menu
+Ombre légère : BoxShadow sur chaque carte pour effet de profondeur
+Pour lancer
+flutter run
+
+c'est devoir explique ça au cas ou le prof me pose les questions
+
+
+
+Voici une explication complète de tout le code, section par section.
+
+Explication du code - Settings Pro
+1. main() et MyApp
+void main() {
+  runApp(const MyApp());
+}
+
+main() est le point d'entrée de toute app Dart/Flutter.
+runApp() lance l'application en prenant un widget comme racine.
+MyApp est un StatelessWidget (widget sans état) qui configure l'app globale.
+MaterialApp fournit le thème, la navigation, le titre de l'app.
+debugShowCheckedModeBanner: false supprime le bandeau rouge "DEBUG".
+2. SettingsPage - Le Scaffold
+Scaffold(
+  backgroundColor: const Color(0xFFF2F2F7),
+  appBar: AppBar(...),
+  body: ListView(...),
+)
+
+Scaffold est le squelette de base de chaque écran Flutter. Il fournit l'AppBar, le body, etc.
+backgroundColor: Color(0xFFF2F2F7) → fond gris clair (style iOS). Le code 0xFF = opacité 100%, F2F2F7 = la couleur en hexadécimal.
+3. AppBar
+AppBar(
+  title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+  backgroundColor: const Color(0xFFF2F2F7),
+  elevation: 0,
+  centerTitle: false,
+)
+
+title → le texte affiché dans la barre.
+elevation: 0 → supprime l'ombre sous l'AppBar pour un look plat.
+centerTitle: false → le titre est aligné à gauche.
+4. ListView
+ListView(
+  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  children: [ ... ],
+)
+
+ListView permet de faire défiler le contenu verticalement.
+padding ajoute un espace intérieur autour de la liste.
+children contient tous les widgets affichés dans la liste.
+5. _SectionTitle - Widget personnalisé
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  ...
+  Text(title.toUpperCase(), style: TextStyle(color: Colors.grey, ...))
+}
+
+C'est un widget réutilisable créé pour éviter de répéter le code du titre de section.
+.toUpperCase() met le texte en majuscules (ex: "ACCOUNT").
+letterSpacing: 0.8 espace légèrement les lettres pour un effet pro.
+6. Container avec coins arrondis (les cartes de section)
+Container(
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(14),
+    boxShadow: [ BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8) ],
+  ),
+  child: Column( children: [ ListTile(...), Divider(...), ListTile(...) ] ),
+)
+
+Container est une boîte personnalisable (couleur, forme, ombre...).
+BoxDecoration définit l'apparence visuelle du Container.
+BorderRadius.circular(14) → coins arrondis avec un rayon de 14 pixels.
+BoxShadow ajoute une ombre légère sous la carte.
+withValues(alpha: 0.05) → couleur noire avec 5% d'opacité (ombre très légère).
+7. ListTile
+ListTile(
+  leading: Container( child: Icon(Icons.person, color: Colors.indigo) ),
+  title: Text('Profile'),
+  trailing: Icon(Icons.chevron_right),
+  onTap: () => _showSnackBar(context, 'Ouverture du profil'),
+)
+
+ListTile est le widget standard pour un élément de liste.
+leading → widget affiché à gauche (ici une icône dans un Container coloré).
+title → le texte principal de l'élément.
+trailing → widget affiché à droite (ici la flèche >).
+onTap → fonction appelée quand l'utilisateur clique sur l'élément.
+8. Divider
+Padding(
+  padding: EdgeInsets.symmetric(horizontal: 16),
+  child: Divider(height: 1),
+)
+
+Divider est une ligne horizontale de séparation entre deux items.
+Entouré de Padding pour qu'il ne touche pas les bords de la carte.
+9. SnackBar - La méthode _showSnackBar
+void _showSnackBar(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      duration: Duration(seconds: 2),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ),
+  );
+}
+
+ScaffoldMessenger.of(context) → accède au gestionnaire de messages du Scaffold.
+.showSnackBar(...) → affiche la barre en bas de l'écran.
+content: Text(message) → le texte affiché dans le SnackBar.
+duration → combien de temps le SnackBar reste visible.
+SnackBarBehavior.floating → le SnackBar flotte (ne colle pas au bas).
+context est le contexte du widget — il représente l'emplacement du widget dans l'arbre de widgets. Il est nécessaire pour accéder au Scaffold.
+10. Le bouton Log out
+ListTile(
+  leading: Icon(Icons.logout, color: Colors.red),
+  title: Text('Log out', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+  onTap: () => _showSnackBar(context, 'Déconnexion en cours…'),
+)
+
+Même structure qu'un menu normal, mais tout en rouge pour signaler une action dangereuse.
+Placé dans son propre Container séparé des sections, en bas de liste.
+Résumé des concepts clés
+Concept	Explication courte
+StatelessWidget	Widget sans état interne qui ne change pas
+BuildContext	Représente la position du widget dans l'arbre
+const	Valeur connue à la compilation → meilleure performance
+=>	Syntaxe courte pour une fonction à une seule expression
+Padding	Ajoute de l'espace intérieur autour d'un widget
+SizedBox	Espace vide entre les widgets
+Column	Aligne les widgets verticalement

@@ -9,6 +9,10 @@ const portfolioSchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, 'La catégorie est requise'],
+    enum: {
+      values: ['Sites', 'Applications', 'Flyers', 'Visuels IA'],
+      message: 'Catégorie invalide. Valeurs acceptées : Sites, Applications, Flyers, Visuels IA'
+    },
     trim: true
   },
   image: {
