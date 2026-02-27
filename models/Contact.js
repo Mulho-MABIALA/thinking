@@ -16,10 +16,13 @@ const contactSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  address: {
+    type: String,
+    trim: true
+  },
   projectType: {
     type: String,
-    required: [true, 'Le type de projet est requis'],
-    enum: ['Site Web', 'Application Mobile', 'SaaS', 'IA / Data', 'Cybersécurité', 'UX/UI Design', 'Autre']
+    required: [true, 'Le type de projet est requis']
   },
   description: {
     type: String,
