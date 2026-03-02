@@ -30,6 +30,15 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['admin', 'editor'],
     default: 'admin'
+  },
+  // ── 2FA TOTP ──────────────────────────────────────────────
+  twoFactorSecret: {
+    type: String,
+    select: false  // Never returned in regular queries
+  },
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

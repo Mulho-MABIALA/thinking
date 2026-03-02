@@ -1,13 +1,72 @@
 const express = require('express');
+const crypto = require('crypto');
 const Contract = require('../models/Contract');
 const { protect } = require('../middleware/auth');
 const router = express.Router();
 
-// GET /api/contracts - Lister tous les contrats (protégé)
+// ── Routes publiques (signature) ─ AVANT les routes protégées ────────────────
+
+// GET /api/contracts/sign/:token - Récupérer un contrat pour signature (public)
+router.get('/sign/:token', async (req, res) => {
+  try {
+    const contract = await Contract.findOne({
+      signatureToken: req.params.token,
+      signatureTokenExpiry: { $gt: new Date() },
+      deletedAt: null
+    }).select('-signatureToken -signatureTokenExpiry');
+
+    if (!contract) {
+      return res.status(404).json({ message: 'Lien de signature invalide ou expiré' });
+    }
+    if (contract.signedAt) {
+      return res.status(400).json({ message: 'Ce contrat a déjà été signé', signedAt: contract.signedAt });
+    }
+    return res.json(contract);
+  } catch {
+    return res.status(500).json({ message: 'Erreur interne du serveur' });
+  }
+});
+
+// POST /api/contracts/sign/:token - Signer un contrat (public)
+router.post('/sign/:token', async (req, res) => {
+  try {
+    const contract = await Contract.findOne({
+      signatureToken: req.params.token,
+      signatureTokenExpiry: { $gt: new Date() },
+      deletedAt: null
+    });
+
+    if (!contract) {
+      return res.status(404).json({ message: 'Lien de signature invalide ou expiré' });
+    }
+    if (contract.signedAt) {
+      return res.status(400).json({ message: 'Ce contrat a déjà été signé' });
+    }
+
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    contract.signedAt = new Date();
+    contract.status = 'signé';
+    contract.signatureIp = String(ip).split(',')[0].trim();
+    contract.signatureData = req.body.signatureData || null;
+    // Invalider le token après utilisation
+    contract.signatureToken = null;
+    contract.signatureTokenExpiry = null;
+    await contract.save();
+
+    return res.json({ message: 'Contrat signé avec succès', signedAt: contract.signedAt });
+  } catch {
+    return res.status(500).json({ message: 'Erreur interne du serveur' });
+  }
+});
+
+// ── Routes protégées ──────────────────────────────────────────────────────────
+
+// GET /api/contracts - Lister tous les contrats (exclut les soft-deleted)
 router.get('/', protect, async (req, res) => {
   try {
     const { status, page = 1, limit = 50 } = req.query;
-    const query = status ? { status } : {};
+    const query = { deletedAt: null };
+    if (status) query.status = status;
     const contracts = await Contract.find(query)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
@@ -15,39 +74,37 @@ router.get('/', protect, async (req, res) => {
       .populate('contact', 'name email');
     const total = await Contract.countDocuments(query);
     res.json({ contracts, total });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch {
+    res.status(500).json({ message: 'Erreur interne du serveur' });
   }
 });
 
 // GET /api/contracts/stats
 router.get('/stats', protect, async (req, res) => {
   try {
-    const total = await Contract.countDocuments();
-    const signed = await Contract.countDocuments({ status: 'signé' });
-    const pending = await Contract.countDocuments({ status: 'envoyé' });
-    const draft = await Contract.countDocuments({ status: 'brouillon' });
+    const filter = { deletedAt: null };
+    const total = await Contract.countDocuments(filter);
+    const signed = await Contract.countDocuments({ ...filter, status: 'signé' });
+    const pending = await Contract.countDocuments({ ...filter, status: 'envoyé' });
+    const draft = await Contract.countDocuments({ ...filter, status: 'brouillon' });
     const totalAmount = await Contract.aggregate([
-      { $match: { status: 'signé' } },
+      { $match: { status: 'signé', deletedAt: null } },
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
-    res.json({
-      total, signed, pending, draft,
-      totalAmount: totalAmount[0]?.total || 0
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.json({ total, signed, pending, draft, totalAmount: totalAmount[0]?.total || 0 });
+  } catch {
+    res.status(500).json({ message: 'Erreur interne du serveur' });
   }
 });
 
 // GET /api/contracts/:id
 router.get('/:id', protect, async (req, res) => {
   try {
-    const contract = await Contract.findById(req.params.id).populate('contact');
+    const contract = await Contract.findOne({ _id: req.params.id, deletedAt: null }).populate('contact');
     if (!contract) return res.status(404).json({ message: 'Contrat non trouvé' });
     res.json(contract);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch {
+    res.status(500).json({ message: 'Erreur interne du serveur' });
   }
 });
 
@@ -64,7 +121,11 @@ router.post('/', protect, async (req, res) => {
 // PUT /api/contracts/:id
 router.put('/:id', protect, async (req, res) => {
   try {
-    const contract = await Contract.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const contract = await Contract.findOneAndUpdate(
+      { _id: req.params.id, deletedAt: null },
+      req.body,
+      { new: true, runValidators: true }
+    );
     if (!contract) return res.status(404).json({ message: 'Contrat non trouvé' });
     res.json(contract);
   } catch (error) {
@@ -72,14 +133,42 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
-// DELETE /api/contracts/:id
+// DELETE /api/contracts/:id - Soft delete
 router.delete('/:id', protect, async (req, res) => {
   try {
-    const contract = await Contract.findByIdAndDelete(req.params.id);
+    const contract = await Contract.findOneAndUpdate(
+      { _id: req.params.id, deletedAt: null },
+      { deletedAt: new Date() },
+      { new: true }
+    );
     if (!contract) return res.status(404).json({ message: 'Contrat non trouvé' });
     res.json({ message: 'Contrat supprimé' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch {
+    res.status(500).json({ message: 'Erreur interne du serveur' });
+  }
+});
+
+// POST /api/contracts/:id/send-signature - Générer un lien de signature (protégé)
+router.post('/:id/send-signature', protect, async (req, res) => {
+  try {
+    const contract = await Contract.findOne({ _id: req.params.id, deletedAt: null });
+    if (!contract) return res.status(404).json({ message: 'Contrat non trouvé' });
+
+    // Génération d'un token sécurisé (48h d'expiration)
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+    await Contract.findByIdAndUpdate(contract._id, {
+      signatureToken: token,
+      signatureTokenExpiry: expiry
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const signatureUrl = `${frontendUrl}/sign/${token}`;
+
+    res.json({ signatureUrl, expiresAt: expiry });
+  } catch {
+    res.status(500).json({ message: 'Erreur interne du serveur' });
   }
 });
 

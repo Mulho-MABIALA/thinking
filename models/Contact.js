@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 
+const noteSchema = new mongoose.Schema({
+  text: { type: String, required: true, trim: true },
+  author: { type: String, default: 'Admin' },
+  createdAt: { type: Date, default: Date.now }
+}, { _id: true });
+
 const contactSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -36,7 +42,23 @@ const contactSchema = new mongoose.Schema({
   notes: {
     type: String,
     default: ''
+  },
+  // ── Commentaires internes (threaded notes) ────────────────
+  internalNotes: {
+    type: [noteSchema],
+    default: []
+  },
+  // ── Soft delete ───────────────────────────────────────────
+  deletedAt: {
+    type: Date,
+    default: null
   }
 }, { timestamps: true });
+
+// Indexes for common query patterns
+contactSchema.index({ status: 1 });
+contactSchema.index({ createdAt: -1 });
+contactSchema.index({ email: 1 });
+contactSchema.index({ deletedAt: 1 });
 
 module.exports = mongoose.model('Contact', contactSchema);

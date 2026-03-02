@@ -3,11 +3,11 @@ const Finance = require('../models/Finance');
 const { protect } = require('../middleware/auth');
 const router = express.Router();
 
-// GET /api/finance - Lister toutes les transactions
+// GET /api/finance - Lister toutes les transactions (exclut les soft-deleted)
 router.get('/', protect, async (req, res) => {
   try {
     const { type, category, startDate, endDate, limit = 100 } = req.query;
-    const filter = {};
+    const filter = { deletedAt: null };
     if (type) filter.type = type;
     if (category) filter.category = category;
     if (startDate || endDate) {
@@ -22,12 +22,12 @@ router.get('/', protect, async (req, res) => {
       .populate('invoice', 'number')
       .populate('contract', 'number');
     res.json(transactions);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch {
+    res.status(500).json({ message: 'Erreur interne du serveur' });
   }
 });
 
-// GET /api/finance/stats - Statistiques financières
+// GET /api/finance/stats - Statistiques financières (exclut les soft-deleted)
 router.get('/stats', protect, async (req, res) => {
   try {
     const { year, month } = req.query;
@@ -35,32 +35,25 @@ router.get('/stats', protect, async (req, res) => {
     const y = Number(year) || now.getFullYear();
     const m = month !== undefined ? Number(month) : null;
 
-    // Filtre période
     let dateFilter = {};
     if (m !== null) {
       dateFilter = {
-        date: {
-          $gte: new Date(y, m, 1),
-          $lte: new Date(y, m + 1, 0, 23, 59, 59)
-        }
+        date: { $gte: new Date(y, m, 1), $lte: new Date(y, m + 1, 0, 23, 59, 59) }
       };
     } else {
       dateFilter = {
-        date: {
-          $gte: new Date(y, 0, 1),
-          $lte: new Date(y, 11, 31, 23, 59, 59)
-        }
+        date: { $gte: new Date(y, 0, 1), $lte: new Date(y, 11, 31, 23, 59, 59) }
       };
     }
+    const softDeleteFilter = { deletedAt: null };
 
-    // Totaux entrées / sorties
     const [entrees, sorties] = await Promise.all([
       Finance.aggregate([
-        { $match: { type: 'entrée', ...dateFilter } },
+        { $match: { type: 'entrée', ...dateFilter, ...softDeleteFilter } },
         { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
       ]),
       Finance.aggregate([
-        { $match: { type: 'sortie', ...dateFilter } },
+        { $match: { type: 'sortie', ...dateFilter, ...softDeleteFilter } },
         { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
       ])
     ]);
@@ -68,16 +61,14 @@ router.get('/stats', protect, async (req, res) => {
     const totalEntrees = entrees[0]?.total || 0;
     const totalSorties = sorties[0]?.total || 0;
 
-    // Par catégorie
     const byCategory = await Finance.aggregate([
-      { $match: dateFilter },
+      { $match: { ...dateFilter, ...softDeleteFilter } },
       { $group: { _id: { type: '$type', category: '$category' }, total: { $sum: '$amount' }, count: { $sum: 1 } } },
       { $sort: { total: -1 } }
     ]);
 
-    // Évolution mensuelle (12 mois)
     const monthly = await Finance.aggregate([
-      { $match: { date: { $gte: new Date(y, 0, 1), $lte: new Date(y, 11, 31, 23, 59, 59) } } },
+      { $match: { date: { $gte: new Date(y, 0, 1), $lte: new Date(y, 11, 31, 23, 59, 59) }, ...softDeleteFilter } },
       {
         $group: {
           _id: { month: { $month: '$date' }, type: '$type' },
@@ -88,16 +79,14 @@ router.get('/stats', protect, async (req, res) => {
     ]);
 
     res.json({
-      totalEntrees,
-      totalSorties,
+      totalEntrees, totalSorties,
       solde: totalEntrees - totalSorties,
       countEntrees: entrees[0]?.count || 0,
       countSorties: sorties[0]?.count || 0,
-      byCategory,
-      monthly
+      byCategory, monthly
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch {
+    res.status(500).json({ message: 'Erreur interne du serveur' });
   }
 });
 
@@ -114,7 +103,11 @@ router.post('/', protect, async (req, res) => {
 // PUT /api/finance/:id - Modifier une transaction
 router.put('/:id', protect, async (req, res) => {
   try {
-    const transaction = await Finance.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const transaction = await Finance.findOneAndUpdate(
+      { _id: req.params.id, deletedAt: null },
+      req.body,
+      { new: true, runValidators: true }
+    );
     if (!transaction) return res.status(404).json({ message: 'Transaction non trouvée' });
     res.json(transaction);
   } catch (error) {
@@ -122,14 +115,18 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
-// DELETE /api/finance/:id - Supprimer une transaction
+// DELETE /api/finance/:id - Soft delete
 router.delete('/:id', protect, async (req, res) => {
   try {
-    const transaction = await Finance.findByIdAndDelete(req.params.id);
+    const transaction = await Finance.findOneAndUpdate(
+      { _id: req.params.id, deletedAt: null },
+      { deletedAt: new Date() },
+      { new: true }
+    );
     if (!transaction) return res.status(404).json({ message: 'Transaction non trouvée' });
     res.json({ message: 'Transaction supprimée' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch {
+    res.status(500).json({ message: 'Erreur interne du serveur' });
   }
 });
 

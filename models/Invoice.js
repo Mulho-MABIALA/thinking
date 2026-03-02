@@ -27,8 +27,17 @@ const invoiceSchema = new mongoose.Schema({
   },
   notes: { type: String, default: '' },
   contract: { type: mongoose.Schema.Types.ObjectId, ref: 'Contract' },
-  contact: { type: mongoose.Schema.Types.ObjectId, ref: 'Contact' }
+  contact: { type: mongoose.Schema.Types.ObjectId, ref: 'Contact' },
+  // ── Soft delete ───────────────────────────────────────────
+  deletedAt: { type: Date, default: null }
 }, { timestamps: true });
+
+// Indexes for common query patterns
+invoiceSchema.index({ status: 1 });
+invoiceSchema.index({ createdAt: -1 });
+invoiceSchema.index({ dueDate: 1, status: 1 });
+invoiceSchema.index({ clientEmail: 1 });
+invoiceSchema.index({ deletedAt: 1 });
 
 // Auto-génération numéro facture
 invoiceSchema.pre('save', async function (next) {

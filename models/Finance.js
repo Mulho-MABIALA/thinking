@@ -47,7 +47,15 @@ const financeSchema = new mongoose.Schema({
   contact: { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', default: null },
   invoice: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', default: null },
   contract: { type: mongoose.Schema.Types.ObjectId, ref: 'Contract', default: null },
-  notes: { type: String, default: '' }
+  notes: { type: String, default: '' },
+  // ── Soft delete ───────────────────────────────────────────
+  deletedAt: { type: Date, default: null }
 }, { timestamps: true });
+
+// Indexes for aggregation and filtering
+financeSchema.index({ type: 1, date: -1 });
+financeSchema.index({ date: -1 });
+financeSchema.index({ category: 1 });
+financeSchema.index({ deletedAt: 1 });
 
 module.exports = mongoose.model('Finance', financeSchema);

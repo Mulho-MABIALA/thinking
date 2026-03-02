@@ -109,7 +109,8 @@ router.get('/', protect, async (req, res) => {
       recentContactsList
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('[STATS]', error);
+    res.status(500).json({ message: 'Erreur interne du serveur' });
   }
 });
 
