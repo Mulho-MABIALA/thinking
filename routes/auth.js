@@ -51,7 +51,10 @@ router.post(
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
         twoFactorEnabled: user.twoFactorEnabled,
+        hasGoogleAccount: !!user.googleId,
+        createdAt: user.createdAt,
         token: generateToken(user._id),
       });
     } catch {
@@ -104,7 +107,10 @@ router.post(
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
         twoFactorEnabled: user.twoFactorEnabled,
+        hasGoogleAccount: !!user.googleId,
+        createdAt: user.createdAt,
         token: generateToken(user._id),
       });
     } catch {
@@ -138,7 +144,7 @@ router.post(
 
       if (!user.googleId) {
         user.googleId = googleId;
-        if (picture) user.avatar = picture;
+        if (picture && !user.avatar) user.avatar = picture;
         await user.save();
       }
 
@@ -147,7 +153,10 @@ router.post(
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
         twoFactorEnabled: user.twoFactorEnabled,
+        hasGoogleAccount: true,
+        createdAt: user.createdAt,
         token: generateToken(user._id),
       });
     } catch {
@@ -158,8 +167,89 @@ router.post(
 
 // GET /api/auth/me
 router.get('/me', protect, (req, res) => {
-  res.json(req.user);
+  const u = req.user;
+  res.json({
+    _id: u._id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    avatar: u.avatar,
+    twoFactorEnabled: u.twoFactorEnabled,
+    hasGoogleAccount: !!u.googleId,
+    createdAt: u.createdAt,
+  });
 });
+
+// PUT /api/auth/profile - Mettre à jour nom et avatar
+router.put(
+  '/profile',
+  protect,
+  [
+    body('name').optional().trim().notEmpty().withMessage('Le nom ne peut pas être vide'),
+    body('avatar').optional().trim(),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const { name, avatar } = req.body;
+      const updateData = {};
+      if (name !== undefined) updateData.name = name;
+      if (avatar !== undefined) updateData.avatar = avatar;
+
+      const user = await User.findByIdAndUpdate(req.user._id, updateData, { new: true });
+
+      return res.json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        twoFactorEnabled: user.twoFactorEnabled,
+        hasGoogleAccount: !!user.googleId,
+        createdAt: user.createdAt,
+      });
+    } catch {
+      return res.status(500).json({ message: 'Erreur interne du serveur' });
+    }
+  }
+);
+
+// PUT /api/auth/password - Changer le mot de passe
+router.put(
+  '/password',
+  protect,
+  [
+    body('currentPassword').notEmpty().withMessage('Mot de passe actuel requis'),
+    body('newPassword').isLength({ min: 6 }).withMessage('Le nouveau mot de passe doit faire au moins 6 caractères'),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const user = await User.findById(req.user._id).select('+password');
+
+      if (!user) {
+        return res.status(404).json({ message: 'Utilisateur introuvable' });
+      }
+
+      if (!user.password) {
+        return res.status(400).json({ message: 'Ce compte utilise uniquement Google OAuth. Définissez un mot de passe initial autrement.' });
+      }
+
+      const isMatch = await user.matchPassword(currentPassword);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Mot de passe actuel incorrect' });
+      }
+
+      user.password = newPassword;
+      await user.save(); // déclenche le hook bcrypt pre-save
+
+      return res.json({ message: 'Mot de passe mis à jour avec succès' });
+    } catch {
+      return res.status(500).json({ message: 'Erreur interne du serveur' });
+    }
+  }
+);
 
 // ── 2FA Management (routes protégées) ────────────────────────────────────────
 
