@@ -91,7 +91,7 @@ app.use('/api/upload', require('./routes/upload'));
 
 // ─── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Thinking Tech API is running', env: process.env.NODE_ENV || 'development' });
+  res.json({ status: 'ok', message: 'Zolaa API is running', env: process.env.NODE_ENV || 'development' });
 });
 
 // ─── 404 handler ──────────────────────────────────────────────────────────────

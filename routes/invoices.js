@@ -1,5 +1,6 @@
 const express = require('express');
 const Invoice = require('../models/Invoice');
+const Finance = require('../models/Finance');
 const { protect } = require('../middleware/auth');
 const router = express.Router();
 
@@ -82,8 +83,41 @@ router.put('/:id', protect, async (req, res) => {
   try {
     const invoice = await Invoice.findOne({ _id: req.params.id, deletedAt: null });
     if (!invoice) return res.status(404).json({ message: 'Facture non trouvée' });
+
+    const oldStatus = invoice.status;
     Object.assign(invoice, req.body);
     await invoice.save();
+
+    // ── Auto-finance: facture marquée comme payée ──────────────────────────
+    if (req.body.status === 'payé' && oldStatus !== 'payé') {
+      // Evite les doublons : supprimer une éventuelle entrée existante liée
+      await Finance.updateMany(
+        { invoice: invoice._id, deletedAt: null },
+        { deletedAt: new Date() }
+      );
+      await Finance.create({
+        type: 'entrée',
+        category: 'Facture client',
+        description: `Paiement facture ${invoice.number} — ${invoice.clientName}`,
+        amount: invoice.total,
+        currency: invoice.currency || 'XOF',
+        date: invoice.paidAt || new Date(),
+        paymentMethod: 'virement',
+        reference: invoice.number,
+        contact: invoice.contact || null,
+        invoice: invoice._id,
+        notes: `Entrée automatique à la validation de la facture ${invoice.number}`,
+      });
+    }
+
+    // ── Auto-finance: facture dépayée (annulé / en_attente) ───────────────
+    if (oldStatus === 'payé' && req.body.status && req.body.status !== 'payé') {
+      await Finance.updateMany(
+        { invoice: invoice._id, deletedAt: null },
+        { deletedAt: new Date() }
+      );
+    }
+
     res.json(invoice);
   } catch (error) {
     res.status(400).json({ message: error.message });
