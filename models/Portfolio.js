@@ -34,6 +34,10 @@ const portfolioSchema = new mongoose.Schema({
   technologies: [{
     type: String
   }],
+  liveUrl: {
+    type: String,
+    default: ''
+  },
   featured: {
     type: Boolean,
     default: false
