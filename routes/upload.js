@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const authMiddleware = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '..', 'uploads');
@@ -36,7 +36,7 @@ const upload = multer({
 });
 
 // POST /api/upload — upload a single image (admin only)
-router.post('/', authMiddleware, upload.single('image'), (req, res) => {
+router.post('/', protect, upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'Aucun fichier envoyé.' });
   }
