@@ -124,40 +124,6 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
-// POST /api/invoices/backfill-finance  ← TEMPORAIRE : supprimer après usage
-// Crée les entrées Finance manquantes pour toutes les factures déjà payées
-router.post('/backfill-finance', protect, async (req, res) => {
-  try {
-    const paidInvoices = await Invoice.find({ status: 'payé', deletedAt: null });
-    let created = 0;
-    let skipped = 0;
-
-    for (const invoice of paidInvoices) {
-      const existing = await Finance.findOne({ invoice: invoice._id, deletedAt: null });
-      if (existing) { skipped++; continue; }
-
-      await Finance.create({
-        type: 'entrée',
-        category: 'Facture client',
-        description: `Paiement facture ${invoice.number} — ${invoice.clientName}`,
-        amount: invoice.total,
-        currency: invoice.currency || 'XOF',
-        date: invoice.paidAt || invoice.updatedAt || new Date(),
-        paymentMethod: 'virement',
-        reference: invoice.number,
-        contact: invoice.contact || null,
-        invoice: invoice._id,
-        notes: `Entrée importée rétroactivement depuis la facture ${invoice.number}`,
-      });
-      created++;
-    }
-
-    res.json({ message: `Migration terminée : ${created} créée(s), ${skipped} ignorée(s)`, created, skipped });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
 // DELETE /api/invoices/:id - Soft delete
 router.delete('/:id', protect, async (req, res) => {
   try {
