@@ -87,6 +87,7 @@ app.use('/api/contracts', require('./routes/contracts'));
 app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/finance', require('./routes/finance'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/upload', require('./routes/upload'));
 
 // ─── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
