@@ -26,6 +26,8 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'https://bejewelled-piroshki-f572b9.netlify.app',
+  'https://zolaa.tech',
+  'https://www.zolaa.tech',
   process.env.FRONTEND_URL,
 ].filter(Boolean).map((o) => o.replace(/\/$/, ''));
 
