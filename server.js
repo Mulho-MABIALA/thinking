@@ -63,7 +63,18 @@ const apiLimiter = rateLimit({
   message: { message: 'Trop de requêtes, réessayez plus tard.' },
 });
 
+// Strict limit for public submission endpoints (anti-spam)
+const publicLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 heure
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Trop de soumissions, réessayez dans une heure.' },
+});
+
 app.use('/api/auth', authLimiter);
+app.use('/api/testimonials/submit', publicLimiter);
+app.use('/api/contracts/sign', publicLimiter);
 app.use('/api/', apiLimiter);
 
 // ─── Body parsing ─────────────────────────────────────────────────────────────

@@ -9,8 +9,8 @@ router.get('/', async (req, res) => {
     const filter = req.query.published === 'true' ? { published: true } : {};
     const testimonials = await Testimonial.find(filter).sort({ order: 1, createdAt: -1 });
     res.json(testimonials);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch {
+    res.status(500).json({ message: 'Erreur interne du serveur' });
   }
 });
 
@@ -18,18 +18,26 @@ router.get('/', async (req, res) => {
 router.post('/submit', async (req, res) => {
   try {
     const { name, role, company, content, rating } = req.body;
+
+    // Validation présence et types
     if (!name || !role || !company || !content) {
       return res.status(400).json({ message: 'Tous les champs sont obligatoires' });
     }
-    const testimonial = await Testimonial.create({
-      name, role, company, content,
-      rating: rating || 5,
-      published: false, // en attente de validation admin
+    if (typeof name !== 'string' || name.length > 100) return res.status(400).json({ message: 'Nom invalide' });
+    if (typeof role !== 'string' || role.length > 100) return res.status(400).json({ message: 'Rôle invalide' });
+    if (typeof company !== 'string' || company.length > 150) return res.status(400).json({ message: 'Entreprise invalide' });
+    if (typeof content !== 'string' || content.length > 1000) return res.status(400).json({ message: 'Contenu trop long (max 1000 caractères)' });
+    const safeRating = Math.min(5, Math.max(1, parseInt(rating) || 5));
+
+    await Testimonial.create({
+      name: name.trim(), role: role.trim(), company: company.trim(), content: content.trim(),
+      rating: safeRating,
+      published: false,
       image: ''
     });
-    res.status(201).json({ message: 'Témoignage soumis avec succès, en attente de validation.', testimonial });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(201).json({ message: 'Témoignage soumis avec succès, en attente de validation.' });
+  } catch {
+    res.status(400).json({ message: 'Données invalides' });
   }
 });
 

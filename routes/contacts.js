@@ -45,9 +45,15 @@ router.post('/', contactValidation, validate, async (req, res) => {
 // PUT /api/contacts/:id - Mettre à jour un contact (protégé)
 router.put('/:id', protect, async (req, res) => {
   try {
+    // Whitelist des champs autorisés (anti injection NoSQL)
+    const { name, email, phone, company, subject, message, status, notes } = req.body;
+    const allowedFields = { name, email, phone, company, subject, message, status, notes };
+    // Retirer les champs undefined
+    Object.keys(allowedFields).forEach(k => allowedFields[k] === undefined && delete allowedFields[k]);
+
     const contact = await Contact.findOneAndUpdate(
       { _id: req.params.id, deletedAt: null },
-      req.body,
+      allowedFields,
       { new: true, runValidators: true }
     );
     if (!contact) return res.status(404).json({ message: 'Contact non trouvé' });
