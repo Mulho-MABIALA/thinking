@@ -101,6 +101,7 @@ app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/finance', require('./routes/finance'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/upload', require('./routes/upload'));
+app.use('/api/users', require('./routes/users'));
 
 // ─── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
