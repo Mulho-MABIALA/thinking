@@ -1,6 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const { Resend } = require('resend');
+const multer = require('multer');
 const Newsletter = require('../models/Newsletter');
 const NewsletterCampaign = require('../models/NewsletterCampaign');
 const { protect } = require('../middleware/auth');
@@ -10,6 +11,12 @@ const router = express.Router();
 
 // ─── Resend client ────────────────────────────────────────────────────────────
 const getResend = () => new Resend(process.env.RESEND_API_KEY);
+
+// ─── Multer (file attachments, memory storage) ────────────────────────────────
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+});
 
 // ─── Email template builder ───────────────────────────────────────────────────
 const buildEmailTemplate = (subject, content) => `
@@ -23,13 +30,13 @@ const buildEmailTemplate = (subject, content) => `
     body { margin: 0; padding: 0; background: #f4f4f5; font-family: 'Helvetica Neue', Arial, sans-serif; }
     .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,0.08); }
     .header { background: #18181b; padding: 28px 32px; text-align: center; }
-    .header img { height: 36px; }
-    .header h2 { color: #f59e0b; font-size: 20px; margin: 12px 0 0; font-weight: 800; letter-spacing: -0.5px; }
+    .header h2 { color: #f59e0b; font-size: 20px; margin: 0; font-weight: 800; letter-spacing: -0.5px; }
     .body { padding: 32px; color: #3f3f46; font-size: 15px; line-height: 1.7; }
     .body h1, .body h2, .body h3 { color: #18181b; }
+    .body a { color: #f59e0b; }
+    .body ul, .body ol { padding-left: 20px; }
     .footer { background: #f4f4f5; padding: 20px 32px; text-align: center; font-size: 12px; color: #a1a1aa; }
     .footer a { color: #f59e0b; text-decoration: none; }
-    .unsubscribe { margin-top: 12px; font-size: 11px; color: #d4d4d8; }
   </style>
 </head>
 <body>
@@ -152,10 +159,11 @@ router.delete('/subscribers/:id', protect, async (req, res) => {
 });
 
 // ─── POST /api/newsletter/send ────────────────────────────────────────────────
-// Protégé — envoyer une campagne email à tous les abonnés actifs
+// Protégé — envoyer une campagne email (avec sélection de destinataires + pièce jointe)
 router.post(
   '/send',
   protect,
+  upload.single('attachment'), // multer doit s'exécuter AVANT express-validator
   [
     body('subject').trim().notEmpty().withMessage('Sujet requis').isLength({ max: 200 }),
     body('content').trim().notEmpty().withMessage('Contenu requis'),
@@ -167,29 +175,48 @@ router.post(
         return res.status(503).json({ message: 'Configuration email manquante (RESEND_API_KEY).' });
       }
 
-      const { subject, content } = req.body;
+      const { subject, content, recipients } = req.body;
 
-      // Récupérer tous les abonnés actifs
-      const activeSubscribers = await Newsletter.find({ status: 'active' }).lean();
+      // ── Déterminer la liste des destinataires ──────────────────────────────
+      let targetSubscribers;
 
-      if (activeSubscribers.length === 0) {
-        return res.status(400).json({ message: 'Aucun abonné actif.' });
+      if (!recipients || recipients === 'all') {
+        // Tous les abonnés actifs
+        targetSubscribers = await Newsletter.find({ status: 'active' }).lean();
+      } else {
+        // Sélection spécifique — recipients est un tableau JSON d'emails
+        try {
+          const emailList = JSON.parse(recipients);
+          if (!Array.isArray(emailList) || emailList.length === 0) {
+            return res.status(400).json({ message: 'Aucun destinataire sélectionné.' });
+          }
+          targetSubscribers = await Newsletter.find({
+            email: { $in: emailList },
+            status: 'active',
+          }).lean();
+        } catch {
+          return res.status(400).json({ message: 'Format des destinataires invalide.' });
+        }
       }
 
-      // Créer l'entrée de campagne
+      if (targetSubscribers.length === 0) {
+        return res.status(400).json({ message: 'Aucun abonné actif parmi les destinataires.' });
+      }
+
+      // ── Créer l'entrée de campagne ─────────────────────────────────────────
       const campaign = await NewsletterCampaign.create({
         subject,
         content,
-        sentTo: activeSubscribers.length,
+        sentTo: targetSubscribers.length,
         sentBy: req.user?.name || 'Admin',
         status: 'sending',
       });
 
-      // Répondre immédiatement — l'envoi se fait en arrière-plan
+      // ── Répondre immédiatement — l'envoi se fait en arrière-plan ──────────
       res.status(202).json({
-        message: `Campagne en cours d'envoi à ${activeSubscribers.length} abonné(s).`,
+        message: `Campagne en cours d'envoi à ${targetSubscribers.length} abonné(s).`,
         campaignId: campaign._id,
-        sentTo: activeSubscribers.length,
+        sentTo: targetSubscribers.length,
       });
 
       // ── Envoi asynchrone via Resend ───────────────────────────────────────
@@ -197,16 +224,22 @@ router.post(
       const html = buildEmailTemplate(subject, content);
       const fromAddress = process.env.RESEND_FROM || 'Zolaa <newsletter@zolaa.tech>';
 
+      // Pièce jointe (optionnelle)
+      const attachments = req.file
+        ? [{ filename: req.file.originalname, content: req.file.buffer }]
+        : undefined;
+
       let successCount = 0;
       let failCount = 0;
 
-      for (const subscriber of activeSubscribers) {
+      for (const subscriber of targetSubscribers) {
         try {
           const { error } = await resend.emails.send({
             from: fromAddress,
             to: subscriber.email,
             subject,
             html,
+            ...(attachments && { attachments }),
           });
           if (error) {
             failCount++;
@@ -221,11 +254,11 @@ router.post(
         }
       }
 
-      // Mettre à jour le statut de la campagne
+      // ── Mettre à jour le statut de la campagne ────────────────────────────
       await NewsletterCampaign.findByIdAndUpdate(campaign._id, {
         sentSuccess: successCount,
         sentFailed: failCount,
-        status: failCount === activeSubscribers.length ? 'failed' : 'sent',
+        status: failCount === targetSubscribers.length ? 'failed' : 'sent',
       });
     } catch {
       return res.status(500).json({ message: 'Erreur interne du serveur' });
