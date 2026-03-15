@@ -1,6 +1,6 @@
 const express = require('express');
 const { body } = require('express-validator');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const Newsletter = require('../models/Newsletter');
 const NewsletterCampaign = require('../models/NewsletterCampaign');
 const { protect } = require('../middleware/auth');
@@ -8,15 +8,8 @@ const { validate } = require('../middleware/validate');
 
 const router = express.Router();
 
-// ─── Nodemailer transporter ───────────────────────────────────────────────────
-const createTransporter = () =>
-  nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
+// ─── Resend client ────────────────────────────────────────────────────────────
+const getResend = () => new Resend(process.env.RESEND_API_KEY);
 
 // ─── Email template builder ───────────────────────────────────────────────────
 const buildEmailTemplate = (subject, content) => `
@@ -170,8 +163,8 @@ router.post(
   validate,
   async (req, res) => {
     try {
-      if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-        return res.status(503).json({ message: 'Configuration email manquante (GMAIL_USER / GMAIL_APP_PASSWORD).' });
+      if (!process.env.RESEND_API_KEY) {
+        return res.status(503).json({ message: 'Configuration email manquante (RESEND_API_KEY).' });
       }
 
       const { subject, content } = req.body;
@@ -199,41 +192,32 @@ router.post(
         sentTo: activeSubscribers.length,
       });
 
-      // ── Envoi asynchrone ──────────────────────────────────────────────────
-      const transporter = createTransporter();
-
-      // Vérifier la connexion SMTP avant d'envoyer
-      try {
-        await transporter.verify();
-        console.log('[NEWSLETTER] Connexion SMTP Gmail OK');
-      } catch (verifyErr) {
-        console.error('[NEWSLETTER] Erreur connexion SMTP:', verifyErr.message);
-        await NewsletterCampaign.findByIdAndUpdate(campaign._id, {
-          status: 'failed',
-          sentSuccess: 0,
-          sentFailed: activeSubscribers.length,
-        });
-        return;
-      }
-
+      // ── Envoi asynchrone via Resend ───────────────────────────────────────
+      const resend = getResend();
       const html = buildEmailTemplate(subject, content);
+      const fromAddress = process.env.RESEND_FROM || 'Zolaa <newsletter@zolaa.tech>';
 
       let successCount = 0;
       let failCount = 0;
 
       for (const subscriber of activeSubscribers) {
         try {
-          await transporter.sendMail({
-            from: `"Zolaa" <${process.env.GMAIL_USER}>`,
+          const { error } = await resend.emails.send({
+            from: fromAddress,
             to: subscriber.email,
             subject,
             html,
           });
-          successCount++;
-          console.log(`[NEWSLETTER] ✓ Envoyé à ${subscriber.email}`);
+          if (error) {
+            failCount++;
+            console.error(`[NEWSLETTER] ✗ Échec pour ${subscriber.email}:`, error.message);
+          } else {
+            successCount++;
+            console.log(`[NEWSLETTER] ✓ Envoyé à ${subscriber.email}`);
+          }
         } catch (mailErr) {
           failCount++;
-          console.error(`[NEWSLETTER] ✗ Échec pour ${subscriber.email}:`, mailErr.message);
+          console.error(`[NEWSLETTER] ✗ Erreur pour ${subscriber.email}:`, mailErr.message);
         }
       }
 
