@@ -75,6 +75,7 @@ const publicLimiter = rateLimit({
 app.use('/api/auth', authLimiter);
 app.use('/api/testimonials/submit', publicLimiter);
 app.use('/api/contracts/sign', publicLimiter);
+app.use('/api/newsletter/subscribe', publicLimiter);
 app.use('/api/', apiLimiter);
 
 // ─── Body parsing ─────────────────────────────────────────────────────────────
@@ -102,6 +103,7 @@ app.use('/api/finance', require('./routes/finance'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/newsletter', require('./routes/newsletter'));
 
 // ─── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
