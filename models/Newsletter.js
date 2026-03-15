@@ -19,8 +19,7 @@ const newsletterSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index for fast lookups
-newsletterSchema.index({ email: 1 });
+// Index for fast lookups (email index already created by unique:true)
 newsletterSchema.index({ status: 1 });
 newsletterSchema.index({ createdAt: -1 });
 
