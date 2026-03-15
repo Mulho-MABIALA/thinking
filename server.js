@@ -107,6 +107,7 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/newsletter', require('./routes/newsletter'));
+app.use('/api/ads', require('./routes/ads'));
 
 // ─── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
