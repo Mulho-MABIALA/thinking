@@ -27,6 +27,10 @@ const teamSchema = new mongoose.Schema({
   order: {
     type: Number,
     default: 0
+  },
+  published: {
+    type: Boolean,
+    default: true
   }
 }, { timestamps: true });
 
