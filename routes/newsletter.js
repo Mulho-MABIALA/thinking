@@ -201,6 +201,21 @@ router.post(
 
       // ── Envoi asynchrone ──────────────────────────────────────────────────
       const transporter = createTransporter();
+
+      // Vérifier la connexion SMTP avant d'envoyer
+      try {
+        await transporter.verify();
+        console.log('[NEWSLETTER] Connexion SMTP Gmail OK');
+      } catch (verifyErr) {
+        console.error('[NEWSLETTER] Erreur connexion SMTP:', verifyErr.message);
+        await NewsletterCampaign.findByIdAndUpdate(campaign._id, {
+          status: 'failed',
+          sentSuccess: 0,
+          sentFailed: activeSubscribers.length,
+        });
+        return;
+      }
+
       const html = buildEmailTemplate(subject, content);
 
       let successCount = 0;
@@ -215,8 +230,10 @@ router.post(
             html,
           });
           successCount++;
-        } catch {
+          console.log(`[NEWSLETTER] ✓ Envoyé à ${subscriber.email}`);
+        } catch (mailErr) {
           failCount++;
+          console.error(`[NEWSLETTER] ✗ Échec pour ${subscriber.email}:`, mailErr.message);
         }
       }
 

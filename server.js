@@ -10,6 +10,9 @@ require('dotenv').config();
 
 const app = express();
 
+// Trust Render's reverse proxy (fixes express-rate-limit X-Forwarded-For warning)
+app.set('trust proxy', 1);
+
 // Database connection
 connectDB();
 
