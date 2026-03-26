@@ -83,13 +83,15 @@ router.get('/', protect, async (req, res) => {
 router.get('/stats', protect, async (req, res) => {
   try {
     const filter = { deletedAt: null };
-    const total = await Contract.countDocuments(filter);
-    const signed = await Contract.countDocuments({ ...filter, status: 'signé' });
-    const pending = await Contract.countDocuments({ ...filter, status: 'envoyé' });
-    const draft = await Contract.countDocuments({ ...filter, status: 'brouillon' });
-    const totalAmount = await Contract.aggregate([
-      { $match: { status: 'signé', deletedAt: null } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+    const [total, signed, pending, draft, totalAmount] = await Promise.all([
+      Contract.countDocuments(filter),
+      Contract.countDocuments({ ...filter, status: 'signé' }),
+      Contract.countDocuments({ ...filter, status: 'envoyé' }),
+      Contract.countDocuments({ ...filter, status: 'brouillon' }),
+      Contract.aggregate([
+        { $match: { status: 'signé', deletedAt: null } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ])
     ]);
     res.json({ total, signed, pending, draft, totalAmount: totalAmount[0]?.total || 0 });
   } catch {

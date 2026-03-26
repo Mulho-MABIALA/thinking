@@ -27,23 +27,25 @@ router.get('/', protect, async (req, res) => {
 router.get('/stats', protect, async (req, res) => {
   try {
     const filter = { deletedAt: null };
-    const total = await Invoice.countDocuments(filter);
-    const paid = await Invoice.countDocuments({ ...filter, status: 'payé' });
-    const pending = await Invoice.countDocuments({ ...filter, status: 'en_attente' });
-    const cancelled = await Invoice.countDocuments({ ...filter, status: 'annulé' });
-    const totalRevenue = await Invoice.aggregate([
-      { $match: { status: 'payé', deletedAt: null } },
-      { $group: { _id: null, total: { $sum: '$total' } } }
-    ]);
-    const pendingRevenue = await Invoice.aggregate([
-      { $match: { status: 'en_attente', deletedAt: null } },
-      { $group: { _id: null, total: { $sum: '$total' } } }
-    ]);
-    const monthlyRevenue = await Invoice.aggregate([
-      { $match: { status: 'payé', deletedAt: null } },
-      { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$paidAt' } }, total: { $sum: '$total' } } },
-      { $sort: { _id: 1 } },
-      { $limit: 12 }
+    const [total, paid, pending, cancelled, totalRevenue, pendingRevenue, monthlyRevenue] = await Promise.all([
+      Invoice.countDocuments(filter),
+      Invoice.countDocuments({ ...filter, status: 'payé' }),
+      Invoice.countDocuments({ ...filter, status: 'en_attente' }),
+      Invoice.countDocuments({ ...filter, status: 'annulé' }),
+      Invoice.aggregate([
+        { $match: { status: 'payé', deletedAt: null } },
+        { $group: { _id: null, total: { $sum: '$total' } } }
+      ]),
+      Invoice.aggregate([
+        { $match: { status: 'en_attente', deletedAt: null } },
+        { $group: { _id: null, total: { $sum: '$total' } } }
+      ]),
+      Invoice.aggregate([
+        { $match: { status: 'payé', deletedAt: null } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$paidAt' } }, total: { $sum: '$total' } } },
+        { $sort: { _id: 1 } },
+        { $limit: 12 }
+      ])
     ]);
     res.json({
       total, paid, pending, cancelled,

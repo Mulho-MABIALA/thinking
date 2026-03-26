@@ -6,7 +6,7 @@ const router = express.Router();
 // GET /api/portfolio - Lister tous les projets (public)
 router.get('/', async (req, res) => {
   try {
-    const projects = await Portfolio.find().sort({ order: 1, createdAt: -1 });
+    const projects = await Portfolio.find().sort({ order: 1, createdAt: -1 }).lean();
     res.json(projects);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
 // GET /api/portfolio/:id - Détail d'un projet (public)
 router.get('/:id', async (req, res) => {
   try {
-    const project = await Portfolio.findById(req.params.id);
+    const project = await Portfolio.findById(req.params.id).lean();
     if (!project) return res.status(404).json({ message: 'Projet non trouvé' });
     res.json(project);
   } catch (error) {

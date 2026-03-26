@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
   try {
     // admin=true → tous les membres (pour le dashboard)
     const filter = req.query.admin === 'true' ? {} : { published: { $ne: false } };
-    const members = await Team.find(filter).sort({ order: 1, createdAt: -1 });
+    const members = await Team.find(filter).sort({ order: 1, createdAt: -1 }).lean();
     res.json(members);
   } catch (error) {
     res.status(500).json({ message: error.message });

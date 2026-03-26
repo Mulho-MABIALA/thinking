@@ -8,7 +8,7 @@ router.get('/', async (req, res) => {
   try {
     const { published } = req.query;
     const query = published !== undefined ? { published: published === 'true' } : {};
-    const articles = await News.find(query).sort({ createdAt: -1 });
+    const articles = await News.find(query).sort({ createdAt: -1 }).lean();
     res.json(articles);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 // GET /api/news/:id - Détail d'une actualité (public)
 router.get('/:id', async (req, res) => {
   try {
-    const article = await News.findById(req.params.id);
+    const article = await News.findById(req.params.id).lean();
     if (!article) return res.status(404).json({ message: 'Article non trouvé' });
     res.json(article);
   } catch (error) {

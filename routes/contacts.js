@@ -23,7 +23,8 @@ router.get('/', protect, async (req, res) => {
     const contacts = await Contact.find(query)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .lean();
     const total = await Contact.countDocuments(query);
     return res.json({ contacts, total, page: Number(page), pages: Math.ceil(total / limit) });
   } catch {

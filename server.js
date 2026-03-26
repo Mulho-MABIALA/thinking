@@ -4,6 +4,8 @@ const path = require('path');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
+const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 
 require('dotenv').config();
@@ -19,7 +21,22 @@ connectDB();
 // ─── Security headers ────────────────────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow /uploads images
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://accounts.google.com'],
+      frameSrc: ["'self'", 'https://accounts.google.com'],
+      imgSrc: ["'self'", 'https://res.cloudinary.com', 'data:', 'blob:'],
+      connectSrc: ["'self'", process.env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:5174'],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+    },
+  },
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
 }));
+
+// ─── Compression gzip ────────────────────────────────────────────────────────
+app.use(compression());
 
 // ─── Request logging ─────────────────────────────────────────────────────────
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
@@ -81,9 +98,10 @@ app.use('/api/contracts/sign', publicLimiter);
 app.use('/api/newsletter/subscribe', publicLimiter);
 app.use('/api/', apiLimiter);
 
-// ─── Body parsing ─────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// ─── Body parsing + cookies ────────────────────────────────────────────────────
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(cookieParser());
 
 // ─── Static files ─────────────────────────────────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

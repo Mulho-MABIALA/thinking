@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const partners = await Partner.find().sort({ order: 1, createdAt: -1 });
+    const partners = await Partner.find().sort({ order: 1, createdAt: -1 }).lean();
     res.json(partners);
   } catch (error) {
     res.status(500).json({ message: error.message });

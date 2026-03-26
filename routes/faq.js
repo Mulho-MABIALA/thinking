@@ -6,7 +6,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const filter = req.query.published === 'true' ? { published: true } : {};
-    const faqs = await FAQ.find(filter).sort({ order: 1, createdAt: -1 });
+    const faqs = await FAQ.find(filter).sort({ order: 1, createdAt: -1 }).lean();
     res.json(faqs);
   } catch (error) {
     res.status(500).json({ message: error.message });

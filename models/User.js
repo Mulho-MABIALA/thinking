@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    minlength: 6
+    minlength: 8
   },
   googleId: {
     type: String,
@@ -29,7 +29,16 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: ['admin', 'editor'],
-    default: 'admin'
+    default: 'editor'  // Principe du moindre privilège — promouvoir manuellement en admin
+  },
+  // ── Réinitialisation de mot de passe ──────────────────────
+  resetPasswordToken: {
+    type: String,
+    select: false
+  },
+  resetPasswordExpiry: {
+    type: Date,
+    select: false
   },
   // ── 2FA TOTP ──────────────────────────────────────────────
   twoFactorSecret: {

@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const filter = req.query.published === 'true' ? { published: true } : {};
-    const testimonials = await Testimonial.find(filter).sort({ order: 1, createdAt: -1 });
+    const testimonials = await Testimonial.find(filter).sort({ order: 1, createdAt: -1 }).lean();
     res.json(testimonials);
   } catch {
     res.status(500).json({ message: 'Erreur interne du serveur' });
