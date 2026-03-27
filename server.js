@@ -66,11 +66,13 @@ app.use(cors({
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 // Strict limit for authentication routes (brute-force protection)
+// Limite stricte pour les actions sensibles (login, forgot-password, reset-password)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 15,
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'GET', // /auth/me (GET) ne consomme pas le quota
   message: { message: 'Trop de tentatives, réessayez dans 15 minutes.' },
 });
 
