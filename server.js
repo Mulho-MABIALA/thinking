@@ -134,26 +134,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Zolaa API is running', env: process.env.NODE_ENV || 'development' });
 });
 
-// ─── TEMP: Reset admin password (à supprimer après utilisation) ───────────────
-app.post('/api/setup-admin', async (req, res) => {
-  const { secret, email, password } = req.body;
-  if (!process.env.SETUP_SECRET || secret !== process.env.SETUP_SECRET) {
-    return res.status(403).json({ message: 'Accès refusé' });
-  }
-  try {
-    const bcrypt = require('bcryptjs');
-    const User = require('./models/User');
-    const hash = await bcrypt.hash(password, 10);
-    const user = await User.findOneAndUpdate(
-      { email },
-      { password: hash, role: 'admin' },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
-    );
-    return res.json({ message: 'Mot de passe mis à jour', email: user.email, role: user.role });
-  } catch (e) {
-    return res.status(500).json({ message: e.message });
-  }
-});
 
 // ─── 404 handler ──────────────────────────────────────────────────────────────
 app.use((req, res) => {
