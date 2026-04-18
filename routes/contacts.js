@@ -35,8 +35,8 @@ router.get('/', protect, async (req, res) => {
 // POST /api/contacts - Créer un contact (public - formulaire site)
 router.post('/', contactValidation, validate, async (req, res) => {
   try {
-    const { name, email, phone, projectType, description } = req.body;
-    const contact = await Contact.create({ name, email, phone, projectType, description });
+    const { name, email, phone, address, projectType, description } = req.body;
+    const contact = await Contact.create({ name, email, phone, address, projectType, description });
     return res.status(201).json(contact);
   } catch {
     return res.status(500).json({ message: 'Erreur interne du serveur' });
@@ -47,8 +47,8 @@ router.post('/', contactValidation, validate, async (req, res) => {
 router.put('/:id', protect, async (req, res) => {
   try {
     // Whitelist des champs autorisés (anti injection NoSQL)
-    const { name, email, phone, company, subject, message, status, notes } = req.body;
-    const allowedFields = { name, email, phone, company, subject, message, status, notes };
+    const { name, email, phone, address, company, subject, message, status, notes } = req.body;
+    const allowedFields = { name, email, phone, address, company, subject, message, status, notes };
     // Retirer les champs undefined
     Object.keys(allowedFields).forEach(k => allowedFields[k] === undefined && delete allowedFields[k]);
 
