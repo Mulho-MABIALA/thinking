@@ -1,8 +1,17 @@
 const express = require('express');
 const Invoice = require('../models/Invoice');
 const Finance = require('../models/Finance');
+const ActivityLog = require('../models/ActivityLog');
 const { protect } = require('../middleware/auth');
 const router = express.Router();
+
+const log = (action, invoice, req) => ActivityLog.create({
+  action, entity: 'invoice',
+  entityId: invoice._id?.toString(),
+  entityLabel: invoice.number || invoice.clientName,
+  user: req.user?.name || req.user?.email || 'Admin',
+  ip: req.ip || req.headers['x-forwarded-for'],
+}).catch(() => {});
 
 // GET /api/invoices (exclut les soft-deleted)
 router.get('/', protect, async (req, res) => {
@@ -74,6 +83,7 @@ router.get('/:id', protect, async (req, res) => {
 router.post('/', protect, async (req, res) => {
   try {
     const invoice = await Invoice.create(req.body);
+    log('create', invoice, req);
     res.status(201).json(invoice);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -120,6 +130,7 @@ router.put('/:id', protect, async (req, res) => {
       );
     }
 
+    log('update', invoice, req);
     res.json(invoice);
   } catch (error) {
     res.status(400).json({ message: error.message });

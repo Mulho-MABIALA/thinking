@@ -1,8 +1,17 @@
 const express = require('express');
 const crypto = require('crypto');
 const Contract = require('../models/Contract');
+const ActivityLog = require('../models/ActivityLog');
 const { protect } = require('../middleware/auth');
 const router = express.Router();
+
+const log = (action, contract, req) => ActivityLog.create({
+  action, entity: 'contract',
+  entityId: contract._id?.toString(),
+  entityLabel: contract.number || contract.clientName,
+  user: req.user?.name || req.user?.email || 'Admin',
+  ip: req.ip || req.headers['x-forwarded-for'],
+}).catch(() => {});
 
 // ── Routes publiques (signature) ─ AVANT les routes protégées ────────────────
 

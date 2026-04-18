@@ -128,6 +128,8 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/ads', require('./routes/ads'));
+app.use('/api/search', require('./routes/search'));
+app.use('/api/activity', require('./routes/activity'));
 
 // ─── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

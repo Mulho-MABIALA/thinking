@@ -48,6 +48,11 @@ const contactSchema = new mongoose.Schema({
     type: [noteSchema],
     default: []
   },
+  // ── Statut de lecture ─────────────────────────────────────
+  readAt: {
+    type: Date,
+    default: null
+  },
   // ── Soft delete ───────────────────────────────────────────
   deletedAt: {
     type: Date,

@@ -1,9 +1,18 @@
 const express = require('express');
 const { body } = require('express-validator');
 const Contact = require('../models/Contact');
+const ActivityLog = require('../models/ActivityLog');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const router = express.Router();
+
+const log = (action, contact, req) => ActivityLog.create({
+  action, entity: 'contact',
+  entityId: contact._id?.toString(),
+  entityLabel: contact.name || contact.clientName,
+  user: req.user?.name || req.user?.email || 'Admin',
+  ip: req.ip || req.headers['x-forwarded-for'],
+}).catch(() => {});
 
 // Validation rules for public contact form
 const contactValidation = [
@@ -14,12 +23,28 @@ const contactValidation = [
   body('description').trim().notEmpty().withMessage('La description est requise').isLength({ min: 10, max: 2000 }).withMessage('Description entre 10 et 2000 caractères'),
 ];
 
+// PATCH /api/contacts/:id/read - Marquer comme lu (protégé)
+router.patch('/:id/read', protect, async (req, res) => {
+  try {
+    const contact = await Contact.findOneAndUpdate(
+      { _id: req.params.id, deletedAt: null },
+      { readAt: new Date() },
+      { new: true }
+    );
+    if (!contact) return res.status(404).json({ message: 'Contact non trouvé' });
+    return res.json(contact);
+  } catch {
+    return res.status(500).json({ message: 'Erreur interne du serveur' });
+  }
+});
+
 // GET /api/contacts - Lister tous les contacts (protégé, exclut les soft-deleted)
 router.get('/', protect, async (req, res) => {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, page = 1, limit = 20, unread } = req.query;
     const query = { deletedAt: null };
     if (status) query.status = status;
+    if (unread === 'true') query.readAt = null;
     const contacts = await Contact.find(query)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
@@ -37,6 +62,7 @@ router.post('/', contactValidation, validate, async (req, res) => {
   try {
     const { name, email, phone, address, projectType, description } = req.body;
     const contact = await Contact.create({ name, email, phone, address, projectType, description });
+    log('create', contact, req);
     return res.status(201).json(contact);
   } catch {
     return res.status(500).json({ message: 'Erreur interne du serveur' });
@@ -58,6 +84,7 @@ router.put('/:id', protect, async (req, res) => {
       { new: true, runValidators: true }
     );
     if (!contact) return res.status(404).json({ message: 'Contact non trouvé' });
+    log('update', contact, req);
     return res.json(contact);
   } catch {
     return res.status(400).json({ message: 'Données invalides' });
