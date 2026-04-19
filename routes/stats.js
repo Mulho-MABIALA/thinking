@@ -54,11 +54,11 @@ router.get('/', protect, async (req, res) => {
     // Finance annuelle
     const [financeEntrees, financeSorties] = await Promise.all([
       Finance.aggregate([
-        { $match: { type: 'entrée', date: { $gte: startOfYear, $lte: endOfYear } } },
+        { $match: { type: 'entrée', deletedAt: null, date: { $gte: startOfYear, $lte: endOfYear } } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       Finance.aggregate([
-        { $match: { type: 'sortie', date: { $gte: startOfYear, $lte: endOfYear } } },
+        { $match: { type: 'sortie', deletedAt: null, date: { $gte: startOfYear, $lte: endOfYear } } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ])
     ]);
