@@ -84,6 +84,23 @@ router.post('/', protect, async (req, res) => {
   try {
     const invoice = await Invoice.create(req.body);
     log('create', invoice, req);
+
+    if (invoice.status === 'payé') {
+      await Finance.create({
+        type: 'entrée',
+        category: 'Facture client',
+        description: `Paiement facture ${invoice.number} — ${invoice.clientName}`,
+        amount: invoice.total,
+        currency: invoice.currency || 'XOF',
+        date: invoice.paidAt || new Date(),
+        paymentMethod: 'virement',
+        reference: invoice.number,
+        contact: invoice.contact || null,
+        invoice: invoice._id,
+        notes: `Entrée automatique à la création de la facture ${invoice.number}`,
+      });
+    }
+
     res.status(201).json(invoice);
   } catch (error) {
     res.status(400).json({ message: error.message });
