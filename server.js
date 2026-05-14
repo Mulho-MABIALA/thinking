@@ -97,12 +97,13 @@ const publicLimiter = rateLimit({
 app.use('/api/auth', authLimiter);
 app.use('/api/testimonials/submit', publicLimiter);
 app.use('/api/contracts/sign', publicLimiter);
+app.use('/api/invoices/sign', publicLimiter);
 app.use('/api/newsletter/subscribe', publicLimiter);
 app.use('/api/', apiLimiter);
 
 // ─── Body parsing + cookies ────────────────────────────────────────────────────
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 app.use(cookieParser());
 
 // ─── Static files ─────────────────────────────────────────────────────────────
