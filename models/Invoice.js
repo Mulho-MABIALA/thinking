@@ -28,6 +28,12 @@ const invoiceSchema = new mongoose.Schema({
   notes: { type: String, default: '' },
   contract: { type: mongoose.Schema.Types.ObjectId, ref: 'Contract' },
   contact: { type: mongoose.Schema.Types.ObjectId, ref: 'Contact' },
+  // ── Signature électronique ────────────────────────────────
+  signatureToken: { type: String, default: null, select: false },
+  signatureTokenExpiry: { type: Date, default: null },
+  signedAt: { type: Date, default: null },
+  signatureIp: { type: String, default: null },
+  signatureData: { type: String, default: null },
   // ── Soft delete ───────────────────────────────────────────
   deletedAt: { type: Date, default: null }
 }, { timestamps: true });
@@ -37,6 +43,7 @@ invoiceSchema.index({ status: 1 });
 invoiceSchema.index({ createdAt: -1 });
 invoiceSchema.index({ dueDate: 1, status: 1 });
 invoiceSchema.index({ clientEmail: 1 });
+invoiceSchema.index({ signatureToken: 1 });
 invoiceSchema.index({ deletedAt: 1 });
 
 // Auto-génération numéro facture

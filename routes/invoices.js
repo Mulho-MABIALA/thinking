@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const Invoice = require('../models/Invoice');
 const Finance = require('../models/Finance');
 const ActivityLog = require('../models/ActivityLog');
@@ -12,6 +13,53 @@ const log = (action, invoice, req) => ActivityLog.create({
   user: req.user?.name || req.user?.email || 'Admin',
   ip: req.ip || req.headers['x-forwarded-for'],
 }).catch(() => {});
+
+// ── Routes publiques (signature) ─ AVANT les routes protégées ────────────────
+
+// GET /api/invoices/sign/:token - Récupérer une facture pour signature (public)
+router.get('/sign/:token', async (req, res) => {
+  try {
+    const invoice = await Invoice.findOne({
+      signatureToken: req.params.token,
+      signatureTokenExpiry: { $gt: new Date() },
+      deletedAt: null
+    }).select('-signatureToken -signatureTokenExpiry');
+
+    if (!invoice) return res.status(404).json({ message: 'Lien de signature invalide ou expiré' });
+    if (invoice.signedAt) return res.status(400).json({ message: 'Cette facture a déjà été signée', signedAt: invoice.signedAt });
+    return res.json(invoice);
+  } catch {
+    return res.status(500).json({ message: 'Erreur interne du serveur' });
+  }
+});
+
+// POST /api/invoices/sign/:token - Signer une facture (public)
+router.post('/sign/:token', async (req, res) => {
+  try {
+    const invoice = await Invoice.findOne({
+      signatureToken: req.params.token,
+      signatureTokenExpiry: { $gt: new Date() },
+      deletedAt: null
+    });
+
+    if (!invoice) return res.status(404).json({ message: 'Lien de signature invalide ou expiré' });
+    if (invoice.signedAt) return res.status(400).json({ message: 'Cette facture a déjà été signée' });
+
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    invoice.signedAt = new Date();
+    invoice.signatureIp = String(ip).split(',')[0].trim();
+    invoice.signatureData = req.body.signatureData || null;
+    invoice.signatureToken = null;
+    invoice.signatureTokenExpiry = null;
+    await invoice.save();
+
+    return res.json({ message: 'Facture signée avec succès', signedAt: invoice.signedAt });
+  } catch {
+    return res.status(500).json({ message: 'Erreur interne du serveur' });
+  }
+});
+
+// ── Routes protégées ──────────────────────────────────────────────────────────
 
 // GET /api/invoices (exclut les soft-deleted)
 router.get('/', protect, async (req, res) => {
@@ -62,6 +110,27 @@ router.get('/stats', protect, async (req, res) => {
       pendingRevenue: pendingRevenue[0]?.total || 0,
       monthlyRevenue
     });
+  } catch {
+    res.status(500).json({ message: 'Erreur interne du serveur' });
+  }
+});
+
+// GET /api/invoices/:id/signature-link - Générer lien de signature
+router.get('/:id/signature-link', protect, async (req, res) => {
+  try {
+    const invoice = await Invoice.findOne({ _id: req.params.id, deletedAt: null });
+    if (!invoice) return res.status(404).json({ message: 'Facture non trouvée' });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+    await Invoice.findByIdAndUpdate(invoice._id, {
+      signatureToken: token,
+      signatureTokenExpiry: expiry
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.json({ signatureUrl: `${frontendUrl}/sign-invoice/${token}`, expiresAt: expiry });
   } catch {
     res.status(500).json({ message: 'Erreur interne du serveur' });
   }

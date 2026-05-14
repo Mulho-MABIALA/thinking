@@ -108,6 +108,27 @@ router.get('/stats', protect, async (req, res) => {
   }
 });
 
+// GET /api/contracts/:id/signature-link - Générer lien de signature
+router.get('/:id/signature-link', protect, async (req, res) => {
+  try {
+    const contract = await Contract.findOne({ _id: req.params.id, deletedAt: null });
+    if (!contract) return res.status(404).json({ message: 'Contrat non trouvé' });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+    await Contract.findByIdAndUpdate(contract._id, {
+      signatureToken: token,
+      signatureTokenExpiry: expiry
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.json({ signatureUrl: `${frontendUrl}/sign/${token}`, expiresAt: expiry });
+  } catch {
+    res.status(500).json({ message: 'Erreur interne du serveur' });
+  }
+});
+
 // GET /api/contracts/:id
 router.get('/:id', protect, async (req, res) => {
   try {
