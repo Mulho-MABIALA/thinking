@@ -21,15 +21,15 @@ const portfolioSchema = new mongoose.Schema({
   },
   problem: {
     type: String,
-    required: [true, 'La problématique est requise']
+    default: ''
   },
   solution: {
     type: String,
-    required: [true, 'La solution est requise']
+    default: ''
   },
   result: {
     type: String,
-    required: [true, 'Le résultat est requis']
+    default: ''
   },
   technologies: [{
     type: String
