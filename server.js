@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
+const { startScheduler } = require('./agents/scheduler');
 
 require('dotenv').config();
 
@@ -131,6 +132,7 @@ app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/ads', require('./routes/ads'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/activity', require('./routes/activity'));
+app.use('/api/agents', require('./routes/agents'));
 
 // ─── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -157,4 +159,5 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`[SERVER] Démarré sur le port ${PORT} (${process.env.NODE_ENV || 'development'})`);
+  startScheduler();
 });
