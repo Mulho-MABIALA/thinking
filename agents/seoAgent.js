@@ -17,8 +17,25 @@ async function runSEOAgent() {
   // Analyser les 5 derniers articles publiés
   const articles = await News.find({ published: true }).sort({ createdAt: -1 }).limit(5);
   if (articles.length === 0) {
-    console.log('[AGENT SEO] Aucun article à analyser.');
-    return { success: true, processed: 0 };
+    // Créer quand même un rapport de base avec des recommandations générales
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const report = await Report.create({
+      title: `Rapport SEO — ${todayFR()}`,
+      type: 'activité',
+      period: 'hebdomadaire',
+      dateFrom: weekAgo,
+      dateTo: now,
+      status: 'publié',
+      summary: 'Aucun article publié cette semaine. Recommandations générales SEO incluses.',
+      content: `## Rapport SEO — ${todayFR()}\n\n### Statut\nAucun article de blog publié. Lancez l'**Agent Contenu** pour générer du contenu optimisé SEO.\n\n### Recommandations générales\n- Publiez au moins 2 articles par semaine\n- Ciblez des mots-clés comme "agence web Afrique", "développement application mobile"\n- Optimisez les balises meta de vos pages services et portfolio`,
+      metrics: new Map([['articlesAnalysés', 0], ['scoreGlobal', 'non applicable']]),
+      tags: ['seo', 'automatique', 'agent-ia'],
+      createdBy: 'Agent IA',
+    });
+    await logAgentAction('report', report._id, report.title, 'Aucun article — rapport SEO minimal généré');
+    console.log('[AGENT SEO] Rapport minimal créé (pas d\'articles en base).');
+    return { success: true, reportId: report._id, articlesAnalyzed: 0 };
   }
 
   const articlesList = articles.map((a, i) =>
@@ -101,8 +118,8 @@ ${seoData.globalSuggestions.map(s => `- ${s}`).join('\n')}
     createdBy: 'Agent IA',
   });
 
-  await logAgentAction('contact', report._id, report.title,
-    `Rapport SEO généré pour ${articles.length} articles`, 'create');
+  await logAgentAction('report', report._id, report.title,
+    `Rapport SEO généré pour ${articles.length} articles`);
 
   console.log(`[AGENT SEO] Rapport SEO créé (ID: ${report._id})`);
   return { success: true, reportId: report._id, articlesAnalyzed: articles.length };

@@ -93,7 +93,7 @@ Retourne UNIQUEMENT un JSON valide (sans markdown) :
     status: failed > success ? 'failed' : 'sent',
   });
 
-  await logAgentAction('contact', campaign._id, subject,
+  await logAgentAction('newsletter', campaign._id, subject,
     `Newsletter envoyée à ${success}/${subscribers.length} abonnés`);
 
   console.log(`[AGENT NEWSLETTER] Campagne "${subject}" : ${success} succès, ${failed} échecs`);

@@ -21,6 +21,7 @@ async function runCRMAgent() {
   }).sort({ createdAt: -1 }).limit(20);
 
   if (newContacts.length === 0) {
+    await logAgentAction('agent', 'crm', 'Agent CRM', 'Aucun nouveau contact à traiter.');
     console.log('[AGENT CRM] Aucun nouveau contact à traiter.');
     return { success: true, processed: 0 };
   }
@@ -84,13 +85,8 @@ Retourne UNIQUEMENT un JSON valide (sans markdown) :
         console.log(`[AGENT CRM] Contact ${contact.email} classifié comme spam — archivé.`);
       }
 
-      await logAgentAction(
-        'contact',
-        contact._id,
-        contact.name,
-        `Classification: ${result.classification} — Action: ${result.action}`,
-        'update'
-      );
+      await logAgentAction('contact', contact._id, contact.name,
+        `Classification: ${result.classification} — Action: ${result.action}`);
 
       processed++;
     } catch (e) {

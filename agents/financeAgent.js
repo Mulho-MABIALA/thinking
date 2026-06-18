@@ -24,6 +24,7 @@ async function runFinanceAgent() {
   }).select('number clientName clientEmail total currency dueDate items notes');
 
   if (overdueInvoices.length === 0) {
+    await logAgentAction('agent', 'finance', 'Agent Finance', 'Aucune facture en retard — tout est à jour.');
     console.log('[AGENT FINANCE] Aucune facture en retard.');
     return { success: true, processed: 0 };
   }
@@ -67,13 +68,8 @@ Retourne UNIQUEMENT un JSON valide (sans markdown) :
 
       await sendEmail({ to: invoice.clientEmail, subject, html });
 
-      await logAgentAction(
-        'invoice',
-        invoice._id,
-        invoice.number,
-        `Relance automatique envoyée à ${invoice.clientEmail} — retard de ${daysOverdue} jour(s)`,
-        'update'
-      );
+      await logAgentAction('invoice', invoice._id, invoice.number,
+        `Relance automatique envoyée à ${invoice.clientEmail} — retard de ${daysOverdue} jour(s)`);
 
       console.log(`[AGENT FINANCE] Relance envoyée pour ${invoice.number} à ${invoice.clientEmail}`);
       processed++;

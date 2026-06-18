@@ -4,12 +4,12 @@ const activityLogSchema = new mongoose.Schema({
   action: {
     type: String,
     required: true,
-    enum: ['create', 'update', 'delete', 'read', 'login', 'export']
+    enum: ['create', 'update', 'delete', 'read', 'login', 'export', 'agent']
   },
   entity: {
     type: String,
     required: true,
-    enum: ['contact', 'contract', 'invoice', 'finance', 'user', 'auth']
+    enum: ['contact', 'contract', 'invoice', 'finance', 'user', 'auth', 'agent', 'news', 'report', 'newsletter']
   },
   entityId: { type: String },
   entityLabel: { type: String },

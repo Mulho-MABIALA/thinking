@@ -116,8 +116,8 @@ Retourne UNIQUEMENT un JSON valide (sans markdown) :
     html: emailHtml,
   });
 
-  await logAgentAction('finance', report._id, title,
-    `Rapport hebdomadaire généré et envoyé à ${adminEmail}`, 'create');
+  await logAgentAction('report', report._id, title,
+    `Rapport hebdomadaire généré et envoyé à ${adminEmail}`);
 
   console.log(`[AGENT RAPPORTS] Rapport créé et envoyé (ID: ${report._id})`);
   return { success: true, reportId: report._id };

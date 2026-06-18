@@ -75,7 +75,7 @@ Retourne UNIQUEMENT un JSON valide avec cette structure exacte (sans markdown au
     published: true,
   });
 
-  await logAgentAction('contact', news._id, news.title, `Article généré automatiquement sur : ${topic}`);
+  await logAgentAction('news', news._id, news.title, `Article généré automatiquement sur : ${topic}`);
 
   console.log(`[AGENT CONTENU] Article publié : "${news.title}" (ID: ${news._id})`);
   return { success: true, article: news };

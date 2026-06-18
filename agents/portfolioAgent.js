@@ -20,6 +20,7 @@ async function runPortfolioAgent() {
     .select('title category problem solution result technologies liveUrl');
 
   if (newProjects.length === 0) {
+    await logAgentAction('agent', 'portfolio', 'Agent Portfolio', 'Aucun nouveau projet cette semaine — rien à publier.');
     console.log('[AGENT PORTFOLIO] Aucun nouveau projet cette semaine.');
     return { success: true, processed: 0 };
   }
@@ -126,8 +127,8 @@ ${p.twitter}
     html: emailHtml,
   });
 
-  await logAgentAction('contact', report._id, report.title,
-    `${posts.length} posts générés et envoyés à ${adminEmail}`, 'create');
+  await logAgentAction('report', report._id, report.title,
+    `${posts.length} posts générés et envoyés à ${adminEmail}`);
 
   return { success: true, processed: posts.length, reportId: report._id };
 }

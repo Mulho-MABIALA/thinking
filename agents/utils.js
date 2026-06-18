@@ -7,11 +7,11 @@ const getResend = () => new Resend(process.env.RESEND_API_KEY);
  * Log une action agent dans ActivityLog.
  * entity/action sont limités par le schema — on utilise 'create'/'update' selon le cas.
  */
-async function logAgentAction(entity, entityId, entityLabel, details, action = 'create') {
+async function logAgentAction(entity, entityId, entityLabel, details, action = 'agent') {
   try {
     await ActivityLog.create({
-      action,
-      entity,
+      action: 'agent',
+      entity: entity || 'agent',
       entityId: String(entityId),
       entityLabel,
       user: 'Agent IA',
